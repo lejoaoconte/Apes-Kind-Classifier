@@ -6,39 +6,40 @@ from flask import Flask, render_template, request, Response
 from werkzeug.utils import secure_filename
 from tensorflow.keras.models import model_from_json
 
-app = Flask(__name__, template_folder = 'templates')
-#UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
+app = Flask(__name__, template_folder='templates')
+# UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
 
-json_file = open('modelos/melhor_modelo.json', 'r')
-model = json_file.read()
-json_file.close()
+
+with open('modelos/melhor_modelo.json', 'r') as json_file:
+    model = json_file.read()
+
 model = model_from_json(model)
 model.load_weights('modelos/melhor_peso.best.hdf5')
 
 
-def teste():
+def upload_image():
     filestr = request.files['imagem'].read()
-    npimg = np.fromstring(filestr, np.uint8)
-    img = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
+    np_image = np.fromstring(filestr, np.uint8)
 
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) 
-    img = img/255
+    image = cv2.imdecode(np_image, cv2.IMREAD_COLOR)
+
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    image = image / 255
 
     tam = 128
-    img = cv2.resize(img, (tam, tam))
+    image = cv2.resize(image, (tam, tam))
 
-    teste = []
-    teste.append(img)
-    teste = np.array(teste)
-    
+    test_image = np.array([image])
+
     result = []
-    pred = model.predict_on_batch(teste)
-    result.append(pred)
+    prediction = model.predict_on_batch(test_image)
+    result.append(prediction)
 
     result = np.asarray(result)
     imprime = np.array(result[0][0])
-    
+
     return np.argmax(imprime)
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -47,23 +48,22 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    aqui = teste()
+    image = upload_image()
 
-    macacos = [ 'mantled howler',
-                'patas monkey',
-                'bald uakari',
-                'japanese macaque',
-                'pygmy marmoset',
-                'white headed capuchin',
-                'silvery marmoset',
-                'common squirrel monkey',
-                'black headed night monkey',
-                'nilgiri langur']
-    
-    return render_template('index.html', text=str(macacos[aqui].upper()))
+    monkeys = ['mantled howler',
+               'patas monkey',
+               'bald uakari',
+               'japanese macaque',
+               'pygmy marmoset',
+               'white headed capuchin',
+               'silvery marmoset',
+               'common squirrel monkey',
+               'black headed night monkey',
+               'nilgiri langur']
 
-
+    return render_template('index.html', text=str(monkeys[image].upper()))
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
